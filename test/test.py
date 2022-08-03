@@ -7,7 +7,7 @@ import sys
 sys.path.append("..")
 
 from octahedral_rotation import (
-        anions,
+        anions, cations,
         standardize_atoms,
         find_MO_bonds
         )
@@ -30,8 +30,11 @@ def main():
             print(xtl)
 
     if find_bond:
+        #xtl = ase.io.read("test_structures/Pnma7.vasp")
+        #test_find_MO_bonds(xtl)
+
         for xtl in xtls:
-            print(xtl)
+            print(xtl.symbols)
             test_find_MO_bonds(xtl)
             print()
 
@@ -57,22 +60,22 @@ def test_standardize_atoms(xtl):
 
 def test_find_MO_bonds(xtl):
     xtl_std = standardize_atoms(xtl, True)
-    i, j, D = find_MO_bonds(xtl_std)
+    # bond pairs and bond distances (anion centers)
+    bp, bd = find_MO_bonds(xtl_std)
 
-    # find 6-coordinate atoms (i.e. B-site cations)
-    coord = np.bincount(i)
-    cation_indices = np.where(coord == 6)[0]
-    print(cation_indices)
-    print(xtl_std[cation_indices])
+    # count bonds
+    bond_centers = bp[:,0]
+    bond_counts = np.bincount(bond_centers)[np.unique(bond_centers)]
 
-    anion_indices = np.where(
-            [atom in anions for atom in xtl_std.get_chemical_symbols()]
-            )[0]
-    print(anion_indices)
-    print(xtl_std[anion_indices])
-
-
-    #print(i, j, D)
+    # require anions to have coordination environment of 2 B-site cations
+    if not ((bond_counts == 2).all()):
+        print("FAILURE - anion has more than 2 bonds")
+        return 1
+    # XXX: bond distance vectors were not thoroughly checked - may require
+    # further testing.
+    else:
+        print("SUCCESS")
+        return 0
 
 if __name__ == "__main__":
     main()
