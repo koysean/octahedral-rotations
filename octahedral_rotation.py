@@ -4,6 +4,8 @@ orthorhombic perovskite structure.
 Functions:
     standardize_atoms(xtl: ase.Atoms, to_primitive: bool = True)
     find_MO_bonds(xtl: ase.Atoms)
+    pseudocubic_lattice_vectors(xtl: ase.Atoms)
+    vector_projection(vector: npt.ArrayLike, normal: npt.ArrayLike)
 '''
 import ase
 import ase.geometry.geometry as geom
@@ -15,10 +17,10 @@ import numpy.typing as npt
 import spglib
 from typing import Any
 
-anions = ["O", "S", "Se"] # anions to search for bonds
-cations = ["Ti", "Zr", "Hf"]
+anions = ["O", "S", "Se"]
+cations = ["Ti", "Zr", "Hf"] # B site cations
 
-def standardize_atoms(xtl: ase.Atoms, to_primitive: bool = True)  -> ase.Atoms:
+def standardize_atoms(xtl: ase.Atoms, to_primitive: bool = True) -> ase.Atoms:
     ''' Converts ASE Atoms object to standard cell using spglib
 
     Parameters:
@@ -60,7 +62,7 @@ def standardize_atoms(xtl: ase.Atoms, to_primitive: bool = True)  -> ase.Atoms:
 
     return xtl_std
 
-def find_MO_bonds(xtl: ase.Atoms) -> tuple[npt.NDArray[np.int32], npt.NDArray[Any]]:
+def find_MO_bonds(xtl: ase.Atoms) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
     ''' Finds B-site cation-anion pairs and the vectors connecting them.
 
     Parameters:
@@ -96,3 +98,48 @@ def find_MO_bonds(xtl: ase.Atoms) -> tuple[npt.NDArray[np.int32], npt.NDArray[An
             bond_distances.append(D[idx])
 
     return (np.array(bond_pairs), np.array(bond_distances))
+
+def pseudocubic_lattice_vectors(xtl: ase.Atoms) -> tuple[npt.NDArray, npt.NDArray]:
+    ''' Takes orthorhombic perovskite and returns its pseudocubic lattice
+    vectors as unit vectors and lengths.
+    Assumes that the long axis (c) is xtl.cell[2]
+
+    Parameters:
+    xtl: ase.Atoms
+
+    Returns: (pseudo_unit_vectors, lengths)
+    pseudo_unit_vectors: np.ndarray
+            unit vectors of pseudocubic vectors
+    lengths: np.ndarray
+            lengths of each of the three pseudocubic vectors
+    '''
+
+    # compute pseudocubic lattice vectors a_p and b_p
+    a_pseudo = (xtl.cell.array[0] + xtl.cell.array[1]) / np.sqrt(2)
+    b_pseudo = (xtl.cell.array[0] - xtl.cell.array[1]) / np.sqrt(2)
+
+    pseudo_unit_vectors = np.array([
+        a_pseudo / np.linalg.norm(a_pseudo),
+        b_pseudo / np.linalg.norm(b_pseudo),
+        xtl.cell.array[2] / np.linalg.norm(xtl.cell.array[2])
+        ])
+
+    lengths = np.array([
+        np.linalg.norm(a_pseudo),
+        np.linalg.norm(b_pseudo),
+        xtl.cell.lengths()[2]
+        ])
+
+    return (pseudo_unit_vectors, lengths)
+
+def vector_projection(vector: npt.ArrayLike, normal: npt.ArrayLike) -> npt.NDArray:
+    ''' Projects vector onto the plane defined by the normal vector '''
+    vector = np.asarray(vector)
+    normal = np.asarray(normal)
+
+    if not np.isclose(np.linalg.norm(normal), 1):
+        normal /= np.linalg.norm(normal)
+
+    proj = vector - (np.dot(vector, normal)) * normal
+
+    return proj
