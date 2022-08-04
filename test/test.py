@@ -3,6 +3,7 @@ import ase.io
 import numpy as np
 import os
 import sys
+import warnings
 
 sys.path.append("..")
 
@@ -11,49 +12,92 @@ from octahedral_rotation import (
         standardize_atoms,
         find_MO_bonds,
         pseudocubic_lattice_vectors,
-        vector_projection
+        vector_projection,
+        bond_angle
         )
 
-# Read all test structures into list
+### PREPARING STRUCTURES FOR TESTING
 xtls = []
 struct_dir = "test_structures/"
 for i, structure in enumerate(os.listdir(struct_dir)):
     if structure.endswith(".vasp"):
         xtls.append(ase.io.read(struct_dir + structure))
-xtls.append(ase.Atoms()) # also add an empty Atoms to xtls
+#xtls.append(ase.Atoms()) # add an empty Atoms to xtls
 
-std_at = False # standardize_atoms()
+### FLAGS TO ACTIVATE UNIT TESTS
+std_at = True # standardize_atoms()
 find_bond = False # find_MO_bonds()
-pseudo = False # pseudocubic_lattice_vectors()
-proj = True # vector_projection()
+pseudo = True # pseudocubic_lattice_vectors()
+proj = False # vector_projection()
+angle = True # bond_angle()
 
 def main():
+    test_counter = 0
+    success_counter = 0
+    fail_counter = 0
+
     if std_at:
-        for xtl in xtls:
-            test_standardize_atoms(xtl)
-            print(xtl)
-
-    if find_bond:
-        #xtl = ase.io.read("test_structures/Pnma7.vasp")
-        #test_find_MO_bonds(xtl)
-
+        print("Running standardize_atoms() tests")
         for xtl in xtls:
             print(xtl.symbols)
-            test_find_MO_bonds(xtl)
+            test_counter += 1
+            err = test_standardize_atoms(xtl)
+            if err:
+                fail_counter += 1
+            else:
+                success_counter += 1
             print()
 
+        print("\n\n")
+
+    if find_bond:
+        print("Running find_MO_bonds() tests")
+        for xtl in xtls:
+            print(xtl.symbols)
+            test_counter += 1
+            err = test_find_MO_bonds(xtl)
+            if err:
+                fail_counter += 1
+            else:
+                success_counter += 1
+            print()
+
+        print("\n\n")
+
     if pseudo:
-        print("No test implemented for pseudocubic_lattice_vectors() yet!")
+        warnings.warn("No test implemented for pseudocubic_lattice_vectors() yet!", RuntimeWarning)
+        print("\n\n")
 
     if proj:
-        test_vector_projection()
+        print("Running vector_projection() tests")
+        test_counter += 1
+        err = test_vector_projection()
+        if err:
+            fail_counter += 1
+        else:
+            success_counter += 1
+        print("\n\n")
+
+    if angle:
+        print("Running bond_angle() tests")
+        test_counter += 1
+        err = test_bond_angle()
+        if err:
+            fail_counter += 1
+        else:
+            success_counter += 1
+        print("\n\n")
+
+    print("All tests complete!")
+    print("{:d} TESTS RUN. {:d} SUCCESSES, {:d} FAILURES.".format(
+        test_counter, success_counter, fail_counter))
 
 def test_standardize_atoms(xtl):
     ''' Check if the lattice parameters are ordered correctly '''
     try:
         xtl_std = standardize_atoms(xtl, True)
     except ValueError:
-        print("xtl is None")
+        print("FAILURE: xtl is None")
         return 1
 
     cell = xtl_std.cell
@@ -65,7 +109,7 @@ def test_standardize_atoms(xtl):
         print(xtl_std)
         return 1
 
-    print("SUCCESS")
+    print("SUCCESS!")
     return 0
 
 def test_find_MO_bonds(xtl):
@@ -83,9 +127,9 @@ def test_find_MO_bonds(xtl):
         return 1
     # XXX: bond distance vectors were not thoroughly checked - may require
     # further testing.
-    else:
-        print("SUCCESS")
-        return 0
+
+    print("SUCCESS!")
+    return 0
 
 def test_pseudocubic_lattice_vectors(xtl):
     return 0
@@ -114,8 +158,31 @@ def test_vector_projection():
             ):
         print("FAILURE")
         return 1
-    else:
-        return 0
+
+    print("SUCCESS!")
+    return 0
+
+def test_bond_angle():
+    # value manually derived from Pnma7.vasp, O8 (idx 15)
+    bond_angle_1 = 162.75
+
+    # find bonds from O8 in Pnma7.vasp
+    xtl = ase.io.read("test_structures/Pnma7.vasp")
+    bp, bd = find_MO_bonds(xtl)
+    
+    o8_bond_idx = np.where(bp[:,0] == 15)[0]
+    bond1 = bd[o8_bond_idx[0]]
+    bond2 = bd[o8_bond_idx[1]]
+    norm = [0, 0, 1]
+
+    angle = bond_angle(bond1, bond2, norm)
+
+    if not np.isclose(angle, bond_angle_1, atol=0.01):
+        print("FAILURE")
+        return 1
+
+    print("SUCCESS!")
+    return 0
 
 if __name__ == "__main__":
     main()
