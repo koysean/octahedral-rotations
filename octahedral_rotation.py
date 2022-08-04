@@ -13,10 +13,12 @@ import ase
 import ase.geometry.geometry as geom
 import ase.io
 import ase.neighborlist
+from collections.abc import Iterable
 import numpy as np
 import numpy.typing as npt
 import spglib
-from collections.abc import Iterable
+import warnings
+
 
 # default anions/cations
 anions = ["O", "S", "Se"]
@@ -34,14 +36,26 @@ class OctahedralRotations():
         site_bond_angles: NDArray
                 Array of projected bond angles at each individual anion site.
                 Set when compute_angles() is called.
-        rotation: float
+                dim: [n_anions, 3]. Angles are ordered tilt_a, tilt_b, and
+                rotation
+        mean_rotation: float
                 Rotation angle in degrees
-        tilt_a: float
+        mean_tilt_a: float
                 Tilt angle (along a) in degrees
-        tilt_b: float
+        mean_tilt_b: float
                 Tilt angle (along b) in degrees
     '''
     # TODO: implement octahedral rotation pattern recognition.
+    # TODO: implement cations and anions as properties.
+    '''
+            cations and anions as properties implementation:
+            when set: 
+                    * the format should be checked (Iterable[str])
+                    * self.bond_pairs, self.bond_distances, self.anion_sites
+                        should all be recomputed.
+                    * self.site_bond_angles, self.mean_* should all be unset.
+    '''
+    
     def __init__(self, 
             atoms: ase.Atoms, 
             anions: Iterable[str] = anions,
@@ -61,22 +75,38 @@ class OctahedralRotations():
 
         self.bond_pairs, self.bond_distances = self._find_bonds()
 
-        self.site_bond_angles = None
-        self.rotation = None
-        self.tilt_a = None
-        self.tilt_b = None
+        self.anion_sites = np.unique(self.bond_pairs[:,0])
+        self.site_bond_angles = []
+        self.mean_rotation = None
+        self.mean_tilt_a = None
+        self.mean_tilt_b = None
 
     def compute_angles(self):
         '''
         Computes projected bond angles.
         '''
+        site_bond_angles = []
         lat_vec, lat_param = self.get_pseudocubic_lattice()
-        for site_idx in np.unique(self.bond_pairs[:,0]):
+        for site_idx in self.anion_sites:
+            site_bond_angles.append([])
+            # for each site, find the two bonds from that anion to B-site
+            # cations
             site_bond_idx = np.where(self.bond_pairs == site_idx)[0]
-            # TODO: at each anion site, compute projected bond angles for each
-            # of the three projection planes in lat_vec
+            bond1 = self.bond_distances[site_bond_idx[0]]
+            bond2 = self.bond_distances[site_bond_idx[1]]
 
-    def get_pseudocubic_lattice(self):
+            # at each anion site, compute projected bond angles for each of the
+            # three projection planes in lat_vec
+            for v in lat_vec:
+                theta = bond_angle(bond1, bond2, v)
+                site_bond_angles[-1].append(theta)
+
+        self.site_bond_angles = np.array(site_bond_angles)
+        self.mean_tilt_a = np.mean(self.site_bond_angles[:,0])
+        self.mean_tilt_b = np.mean(self.site_bond_angles[:,1])
+        self.mean_rotation = np.mean(self.site_bond_angles[:,2])
+
+    def get_pseudocubic_lattice(self) -> tuple[npt.NDArray, npt.NDArray]:
         ''' Returns pseudocubic lattice vectors as unit vectors and lengths.
         Assumes that the long axis (c) is atoms.cell[2]
 
@@ -129,10 +159,10 @@ class OctahedralRotations():
 
         # find cation and anion indices
         cation_indices = np.where(
-                [atom in cations for atom in self.atoms.get_chemical_symbols()]
+                [atom in self._cations for atom in self.atoms.get_chemical_symbols()]
                 )[0]
         anion_indices = np.where(
-                [atom in anions for atom in self.atoms.get_chemical_symbols()]
+                [atom in self._anions for atom in self.atoms.get_chemical_symbols()]
                 )[0]
 
         # enumerate valid B-site cation-anion bonds
@@ -201,6 +231,8 @@ def find_MO_bonds(atoms: ase.Atoms) -> tuple[npt.NDArray[np.int32], npt.NDArray[
         bond_pairs: npt.NDArray[int]
         bond_distances: npt.NDArray[float]
     '''
+    warnings.warn("This function has been moved to an OctahedralRotations class method!", DeprecationWarning)
+
     atoms_std = standardize_atoms(atoms)
     # For each nearest neighbor ("bonded") pair:
     #   i: ion 1 index
@@ -243,6 +275,7 @@ def pseudocubic_lattice_vectors(atoms: ase.Atoms) -> tuple[npt.NDArray, npt.NDAr
     lengths: np.ndarray
             lengths of each of the three pseudocubic vectors
     '''
+    warnings.warn("This function has been moved to an OctahedralRotations class method!", DeprecationWarning)
 
     # compute pseudocubic lattice vectors a_p and b_p
     a_pseudo = (atoms.cell.array[0] + atoms.cell.array[1]) / np.sqrt(2)
