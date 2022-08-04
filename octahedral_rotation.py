@@ -2,22 +2,18 @@
 orthorhombic perovskite structure.
 
 Functions:
-    standardize_atoms(atoms: ase.Atoms, to_primitive: bool = True)
     find_MO_bonds(atoms: ase.Atoms)
     pseudocubic_lattice_vectors(atoms: ase.Atoms)
-    vector_projection(vector: npt.ArrayLike, normal: npt.ArrayLike)
-    bond_angle(bond1: npt.ArrayLike, bond2: npt.ArrayLike, proj_normal: npt.ArrayLike)
 '''
 
 import ase
-import ase.geometry.geometry as geom
 import ase.io
 import ase.neighborlist
 from collections.abc import Iterable
 import numpy as np
 import numpy.typing as npt
-import spglib
 import warnings
+import utilities
 
 
 # default anions/cations
@@ -68,7 +64,7 @@ class OctahedralRotations():
         and B-site cations, respectively.
         '''
 
-        self.atoms = standardize_atoms(atoms)
+        self.atoms = utilities.standardize_atoms(atoms)
         self._anions = anions
         self._cations = cations
         
@@ -98,7 +94,7 @@ class OctahedralRotations():
             # at each anion site, compute projected bond angles for each of the
             # three projection planes in lat_vec
             for v in lat_vec:
-                theta = np.nan_to_num(bond_angle(bond1, bond2, v))
+                theta = np.nan_to_num(utilities.bond_angle(bond1, bond2, v))
                 site_bond_angles[-1].append(theta)
 
         self.site_bond_angles = np.array(site_bond_angles)
@@ -182,48 +178,6 @@ class OctahedralRotations():
 
         return (np.array(bond_pairs), np.array(bond_distances))
 
-def standardize_atoms(atoms: ase.Atoms, to_primitive: bool = True) -> ase.Atoms:
-    ''' Converts ASE Atoms object to standard cell using spglib
-
-    Parameters:
-        atoms (ase.Atoms)
-        to_primitive (bool)
-
-    Returns:
-        (cell, positions, chemical_numbers)
-            cell (ndarray[np.float64])
-            positions (ndarray[np.float64])
-            chemical_numbers (ndarray[int32])
-    '''
-    # Using spglib to convert atoms to standardized cell
-    spglib_cell = (atoms.cell, atoms.get_scaled_positions(), atoms.numbers)
-    standardized_cell = spglib.standardize_cell(spglib_cell, to_primitive=to_primitive)
-
-    # If spglib.standardize_cell() doesn't return a value, catch the error
-    if not standardized_cell:
-        raise ValueError("spglib.standardize_cell() returned None; check that atoms is a valid ase.Atoms object.")
-
-    atoms_std = ase.Atoms(
-            cell=standardized_cell[0],
-            scaled_positions=standardized_cell[1],
-            symbols=standardized_cell[2],
-            pbc=True
-            )
-
-    # permute axes (if necessary) so that c is the long axis.
-    lp = atoms_std.cell.lengths() # lattice parameters
-
-    if np.argmax(lp) == 2: # no permutation needed
-        return atoms_std
-    elif np.argmax(lp) == 0:
-        permute = [1, 2, 0]
-    else:
-        permute = [2, 0, 1]
-
-    atoms_std = geom.permute_axes(atoms_std, permute)
-
-    return atoms_std
-
 def find_MO_bonds(atoms: ase.Atoms) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.float64]]:
     ''' Finds B-site cation-anion pairs and the vectors connecting them.
     Only bonds centered at the anions are returned.
@@ -238,7 +192,7 @@ def find_MO_bonds(atoms: ase.Atoms) -> tuple[npt.NDArray[np.int32], npt.NDArray[
     '''
     warnings.warn("This function has been moved to an OctahedralRotations class method!", DeprecationWarning)
 
-    atoms_std = standardize_atoms(atoms)
+    atoms_std = utilities.standardize_atoms(atoms)
     # For each nearest neighbor ("bonded") pair:
     #   i: ion 1 index
     #   j: ion 2 index
@@ -300,55 +254,3 @@ def pseudocubic_lattice_vectors(atoms: ase.Atoms) -> tuple[npt.NDArray, npt.NDAr
 
     return (pseudo_unit_vectors, lengths)
 
-def vector_projection(vector: npt.ArrayLike, normal: npt.ArrayLike) -> npt.NDArray:
-    ''' Projects vector onto the plane defined by the normal vector.
-
-    The vector projection is given by:
-        vector - DOT_PRODUCT(vector, normal) * normal
-
-    Parameters:
-        vector: npt.ArrayLike
-        normal: npt.ArrayLike
-
-    Returns:
-        proj: npt.NDArray
-    '''
-    vector = np.asarray(vector)
-    normal = np.asarray(normal)
-
-    if not np.isclose(np.linalg.norm(normal), 1):
-        normal /= np.linalg.norm(normal)
-
-    proj = vector - (np.dot(vector, normal)) * normal
-
-    return proj
-
-def bond_angle(bond1: npt.ArrayLike, bond2: npt.ArrayLike,
-        proj_normal: npt.ArrayLike) -> float:
-    '''
-    Computes bond angle projected onto a plane.
-
-    Parameters:
-        bond1: npt.ArrayLike
-                Vector of first bond
-        bond2: npt.ArrayLike
-                Vector of second bond
-        proj_normal: npt.ArrayLike
-                Normal vector to the projection plane
-
-    Returns:
-        angle: float
-                bond angle in degrees
-    '''
-
-    proj1 = vector_projection(bond1, proj_normal)
-    proj2 = vector_projection(bond2, proj_normal)
-    l1 = np.linalg.norm(proj1)
-    l2 = np.linalg.norm(proj2)
-
-    angle = np.arccos(
-            np.dot(proj1, proj2) / (l1 * l2)
-            )
-    angle = np.rad2deg(angle)
-
-    return angle
