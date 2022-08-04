@@ -98,13 +98,18 @@ class OctahedralRotations():
             # at each anion site, compute projected bond angles for each of the
             # three projection planes in lat_vec
             for v in lat_vec:
-                theta = bond_angle(bond1, bond2, v)
+                theta = np.nan_to_num(bond_angle(bond1, bond2, v))
                 site_bond_angles[-1].append(theta)
 
         self.site_bond_angles = np.array(site_bond_angles)
-        self.mean_tilt_a = np.mean(self.site_bond_angles[:,0])
-        self.mean_tilt_b = np.mean(self.site_bond_angles[:,1])
-        self.mean_rotation = np.mean(self.site_bond_angles[:,2])
+
+        # use temp to reference each type of angle
+        temp = self.site_bond_angles[:,0] #tilt_a
+        self.mean_tilt_a = np.mean(temp[~np.isclose(temp, 0, atol=0.001)])
+        temp = self.site_bond_angles[:,1] #tilt_b
+        self.mean_tilt_b = np.mean(temp[~np.isclose(temp, 0, atol=0.001)])
+        temp = self.site_bond_angles[:,2] #rotation
+        self.mean_rotation = np.mean(temp[~np.isclose(temp, 0, atol=0.001)])
 
     def get_pseudocubic_lattice(self) -> tuple[npt.NDArray, npt.NDArray]:
         ''' Returns pseudocubic lattice vectors as unit vectors and lengths.
