@@ -16,13 +16,136 @@ import ase.neighborlist
 import numpy as np
 import numpy.typing as npt
 import spglib
+from collections.abc import Iterable
 
+# default anions/cations
 anions = ["O", "S", "Se"]
-cations = ["Ti", "Zr", "Hf"] # B site cations
+cations = ["Ti", "Zr", "Hf"]
 
 class OctahedralRotations():
-    def __init__(self, atoms: ase.Atoms) -> None:
-        self.atoms = atoms
+    ''' 
+    Class to contain information about octahedral rotations in orthorhombic
+    corner-connected perovskites.
+
+    Attributes:
+        atoms: ase.Atoms
+        bond_pairs: ndarray
+        bond_distances: ndarray
+        site_bond_angles: NDArray
+                Array of projected bond angles at each individual anion site.
+                Set when compute_angles() is called.
+        rotation: float
+                Rotation angle in degrees
+        tilt_a: float
+                Tilt angle (along a) in degrees
+        tilt_b: float
+                Tilt angle (along b) in degrees
+    '''
+    # TODO: implement octahedral rotation pattern recognition.
+    def __init__(self, 
+            atoms: ase.Atoms, 
+            anions: Iterable[str] = anions,
+            cations: Iterable[str] = cations
+            ) -> None:
+        '''
+        Initialize OctahedralRotations object.
+        Only requires an ase.Atoms object; however, anions and cations are
+        optional arguments to specify the atomic species to treat as the anions
+        and B-site cations, respectively.
+        '''
+
+        self.atoms = standardize_atoms(atoms)
+        self._anions = anions
+        self._cations = cations
+        
+
+        self.bond_pairs, self.bond_distances = self._find_bonds()
+
+        self.site_bond_angles = None
+        self.rotation = None
+        self.tilt_a = None
+        self.tilt_b = None
+
+    def compute_angles(self):
+        '''
+        Computes projected bond angles.
+        '''
+        lat_vec, lat_param = self.get_pseudocubic_lattice()
+        for site_idx in np.unique(self.bond_pairs[:,0]):
+            site_bond_idx = np.where(self.bond_pairs == site_idx)[0]
+            # TODO: at each anion site, compute projected bond angles for each
+            # of the three projection planes in lat_vec
+
+    def get_pseudocubic_lattice(self):
+        ''' Returns pseudocubic lattice vectors as unit vectors and lengths.
+        Assumes that the long axis (c) is atoms.cell[2]
+
+        Returns: (pseudo_unit_vectors, lengths)
+        pseudo_unit_vectors: np.ndarray
+                unit vectors of pseudocubic vectors
+        lengths: np.ndarray
+                lengths of each of the three pseudocubic vectors
+        '''
+
+        # compute pseudocubic lattice vectors a_p and b_p
+        a_pseudo = (self.atoms.cell.array[0] + self.atoms.cell.array[1]) / np.sqrt(2)
+        b_pseudo = (self.atoms.cell.array[0] - self.atoms.cell.array[1]) / np.sqrt(2)
+
+        pseudo_unit_vectors = np.array([
+            a_pseudo / np.linalg.norm(a_pseudo),
+            b_pseudo / np.linalg.norm(b_pseudo),
+            self.atoms.cell.array[2] / np.linalg.norm(self.atoms.cell.array[2])
+            ])
+
+        lengths = np.array([
+            np.linalg.norm(a_pseudo),
+            np.linalg.norm(b_pseudo),
+            self.atoms.cell.lengths()[2]
+            ])
+
+        return (pseudo_unit_vectors, lengths)
+
+    def _find_bonds(self) -> tuple[npt.NDArray, npt.NDArray]:
+        ''' Finds B-site cation-anion pairs and the vectors connecting them.
+        Only bonds centered at the anions are returned.
+
+        Parameters:
+            atoms: ase.Atoms
+
+        Returns:
+            (bond_pairs, bond_distances)
+            bond_pairs: npt.NDArray[int]
+                    Each element contains a pair of ion indices [ion1, ion2],
+                    where ion1 is the anion and ion2 is the B-site cation.
+            bond_distances: npt.NDArray[float]
+                    Each element is a 3-dim vector pointing from ion1 to ion2.
+        '''
+        # For each nearest neighbor ("bonded") pair:
+        #   i: ion 1 index
+        #   j: ion 2 index
+        #   D: distance vector
+        cutoff = ase.neighborlist.natural_cutoffs(self.atoms)
+        i, j, D = ase.neighborlist.neighbor_list('ijD', self.atoms, cutoff=cutoff)
+
+        # find cation and anion indices
+        cation_indices = np.where(
+                [atom in cations for atom in self.atoms.get_chemical_symbols()]
+                )[0]
+        anion_indices = np.where(
+                [atom in anions for atom in self.atoms.get_chemical_symbols()]
+                )[0]
+
+        # enumerate valid B-site cation-anion bonds
+        bond_pairs = [] # populate with bond pairs [ion1, ion2]
+        bond_distances = [] # populate with distance vectors [x, y, z]
+        for idx, atom in enumerate(i):
+            # only count bond pairs where central atom is an anion and bonded
+            # atom is a B-site cation
+            if (atom in anion_indices) and (j[idx] in cation_indices):
+                bond_pairs.append([atom, j[idx]])
+                bond_distances.append(D[idx])
+
+        return (np.array(bond_pairs), np.array(bond_distances))
 
 def standardize_atoms(atoms: ase.Atoms, to_primitive: bool = True) -> ase.Atoms:
     ''' Converts ASE Atoms object to standard cell using spglib
