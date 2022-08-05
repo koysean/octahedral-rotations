@@ -1,9 +1,14 @@
 ''' Compute the octahedral rotations and tilts of a corner-connected
 orthorhombic perovskite structure.
 
+Classes:
+    OctahedralRotations(atoms: ase.Atoms, 
+            anions: Iterable[str] = anions,
+            cations: Iterable[str] = cations)
+
 Functions:
-    find_MO_bonds(atoms: ase.Atoms)
-    pseudocubic_lattice_vectors(atoms: ase.Atoms)
+    (DEPRECATED) find_MO_bonds(atoms: ase.Atoms)
+    (DEPRECATED) pseudocubic_lattice_vectors(atoms: ase.Atoms)
 '''
 
 import ase
