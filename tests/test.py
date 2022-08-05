@@ -5,12 +5,10 @@ import os
 import sys
 import warnings
 
-sys.path.append("..")
+sys.path.append("../octahedral_rotations")
 
-from octahedral_rotation import (
+from octahedral_rotations import (
         OctahedralRotations,
-        find_MO_bonds,
-        pseudocubic_lattice_vectors,
         )
 from utilities import(
         standardize_atoms,
