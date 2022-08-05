@@ -8,10 +8,12 @@ import warnings
 sys.path.append("..")
 
 from octahedral_rotation import (
-        anions, cations,
-        standardize_atoms,
+        OctahedralRotations,
         find_MO_bonds,
         pseudocubic_lattice_vectors,
+        )
+from utilities import(
+        standardize_atoms,
         vector_projection,
         bond_angle
         )
@@ -24,11 +26,17 @@ for i, structure in enumerate(os.listdir(struct_dir)):
         xtls.append(ase.io.read(struct_dir + structure))
 #xtls.append(ase.Atoms()) # add an empty Atoms to xtls
 
+# octs contains OctahedralRotations objects for each structure
+oct_rots = []
+for xtl in xtls:
+    oct_rots.append(OctahedralRotations(xtl))
+
+
 ### FLAGS TO ACTIVATE UNIT TESTS
 std_at = True # standardize_atoms()
-find_bond = False # find_MO_bonds()
+find_bond = True # find_MO_bonds()
 pseudo = True # pseudocubic_lattice_vectors()
-proj = False # vector_projection()
+proj = True # vector_projection()
 angle = True # bond_angle()
 
 def main():
@@ -52,10 +60,10 @@ def main():
 
     if find_bond:
         print("Running find_MO_bonds() tests")
-        for xtl in xtls:
-            print(xtl.symbols)
+        for oct in oct_rots:
+            print(oct.atoms.symbols)
             test_counter += 1
-            err = test_find_MO_bonds(xtl)
+            err = test_find_MO_bonds(oct)
             if err:
                 fail_counter += 1
             else:
@@ -65,7 +73,7 @@ def main():
         print("\n\n")
 
     if pseudo:
-        warnings.warn("No test implemented for pseudocubic_lattice_vectors() yet!", RuntimeWarning)
+        test_pseudocubic_lattice_vectors(oct_rots[0])
         print("\n\n")
 
     if proj:
@@ -112,10 +120,10 @@ def test_standardize_atoms(xtl):
     print("SUCCESS!")
     return 0
 
-def test_find_MO_bonds(xtl):
-    xtl_std = standardize_atoms(xtl, True)
+def test_find_MO_bonds(oct):
+    #xtl_std = standardize_atoms(xtl, True)
     # bond pairs and bond distances (anion centers)
-    bp, bd = find_MO_bonds(xtl_std)
+    bp, bd = oct._find_bonds()
 
     # count bonds
     bond_centers = bp[:,0]
@@ -131,8 +139,10 @@ def test_find_MO_bonds(xtl):
     print("SUCCESS!")
     return 0
 
-def test_pseudocubic_lattice_vectors(xtl):
-    return 0
+def test_pseudocubic_lattice_vectors(oct):
+    warnings.warn("Pseudocubic_lattice_vectors() test is not written!",
+            RuntimeWarning)
+    return 1
 
 def test_vector_projection():
     v1 = [1,0,0]
@@ -168,7 +178,8 @@ def test_bond_angle():
 
     # find bonds from O8 in Pnma7.vasp
     xtl = ase.io.read("test_structures/Pnma7.vasp")
-    bp, bd = find_MO_bonds(xtl)
+    oct = OctahedralRotations(xtl)
+    bp, bd = oct._find_bonds()
     
     o8_bond_idx = np.where(bp[:,0] == 15)[0]
     bond1 = bd[o8_bond_idx[0]]
