@@ -1,2 +1,1 @@
-from octahedral_rotations import OctahedralRotations
-from . import utilities
+from octahedral_rotations.octahedral_rotations import OctahedralRotations

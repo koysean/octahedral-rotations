@@ -18,7 +18,7 @@ from collections.abc import Iterable
 import numpy as np
 import numpy.typing as npt
 import warnings
-import utilities
+import octahedral_rotations.utilities as utilities
 
 
 # default anions/cations
