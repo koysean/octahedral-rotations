@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "octahedral_rotations_koysean"
+version = "0.0.1"
+authors = [
+  { name="Sean Koyama", email="koysean@gmail.com" },
+]
+description = "Uses the Atomic Simulation Environment (ASE) to compute octahedral rotations of orthorhombic corner-connected perovskites"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU GPL",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/koysean/octahedral-rotations"
+"Bug Tracker" = "https://github.com/koysean/octahedral-rotations/issues"
