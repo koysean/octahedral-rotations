@@ -107,13 +107,13 @@ class OctahedralRotations():
         # use temp to reference each type of angle
         temp = self.site_bond_angles[:,0] #tilt_a
         self.mean_tilt_a = (180 - np.mean(temp[~np.isclose(temp, 0,
-            atol=0.001)])) / 2
+            atol=90)])) / 2
         temp = self.site_bond_angles[:,1] #tilt_b
         self.mean_tilt_b = (180 - np.mean(temp[~np.isclose(temp, 0,
-            atol=0.001)])) / 2
+            atol=90)])) / 2
         temp = self.site_bond_angles[:,2] #rotation
         self.mean_rotation = (180 - np.mean(temp[~np.isclose(temp, 0,
-            atol=0.001)])) / 2
+            atol=90)])) / 2
 
     def get_pseudocubic_lattice(self) -> tuple[npt.NDArray, npt.NDArray]:
         ''' Returns pseudocubic lattice vectors as unit vectors and lengths.
