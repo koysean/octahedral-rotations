@@ -101,8 +101,11 @@ def bond_angle(bond1: npt.ArrayLike, bond2: npt.ArrayLike,
     l1 = np.linalg.norm(proj1)
     l2 = np.linalg.norm(proj2)
 
+    # Need to clip dot product to avoid NaN from floating point errors
     angle = np.arccos(
-            np.dot(proj1, proj2) / (l1 * l2)
+            np.clip(np.dot(proj1, proj2) / (l1 * l2),
+                -1,
+                1)
             )
     angle = np.rad2deg(angle)
 
