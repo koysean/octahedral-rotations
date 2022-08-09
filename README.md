@@ -21,5 +21,6 @@ Sample usage in examples/example.py
 Pypi package is under construction.
 
 For quick installation, clone the git repository and install using pip:
+
     git clone https://github.com/koysean/octahedral-rotations.git
     pip install octahedral-rotations/
