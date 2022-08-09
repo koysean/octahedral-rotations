@@ -14,3 +14,12 @@ Sample usage in examples/example.py
     * Allow for cations and anions to be redefined without reinitializing
       OctahedralRotations
     * Implement octahedral rotation pattern recognition
+
+
+## Installation:
+
+Pypi package is under construction.
+
+For quick installation, clone the git repository and install using pip:
+    git clone https://github.com/koysean/octahedral-rotations.git
+    pip install octahedral-rotations/
